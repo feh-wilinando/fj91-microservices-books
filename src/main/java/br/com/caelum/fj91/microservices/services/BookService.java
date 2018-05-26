@@ -5,6 +5,8 @@ import br.com.caelum.fj91.microservices.exceptions.NotFoundException;
 import br.com.caelum.fj91.microservices.models.Book;
 import br.com.caelum.fj91.microservices.repositories.Books;
 import br.com.caelum.fj91.microservices.rest.AuthorClient;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,16 +24,19 @@ public class BookService {
     }
 
 
+    @Cacheable("book")
     public BookResource getById(Long id){
         Book book = books.findById(id).orElseThrow(NotFoundException::new);
         return toResource(book);
     }
 
+    @CacheEvict(value = {"books", "book"}, allEntries = true)
     public BookResource save(Book book) {
         books.save(book);
         return toResource(book);
     }
 
+    @Cacheable("books")
     public List<BookResource> findAll() {
         return books.findAll().stream().map(this::toResource).collect(Collectors.toList());
     }
