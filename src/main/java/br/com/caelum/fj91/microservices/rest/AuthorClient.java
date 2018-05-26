@@ -7,6 +7,8 @@ import br.com.caelum.fj91.microservices.models.Book;
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +24,13 @@ import java.util.stream.Collectors;
 @Service
 public class AuthorClient {
 
+    private final DiscoveryClient discovery;
     private RestTemplate rest = new RestTemplate();
-    private UriTemplate baseURI = new UriTemplate("http://localhost:8080/authors/{id}");
+    private String baseURI = "/authors/";
+
+    public AuthorClient(DiscoveryClient discovery) {
+        this.discovery = discovery;
+    }
 
     @HystrixCommand(fallbackMethod = "fallback")
     @Cacheable("authors")
@@ -36,7 +43,9 @@ public class AuthorClient {
     }
 
     private String getAuthorById(Long id) {
-        URI uri = baseURI.expand(id);
+        ServiceInstance instance = discovery.getInstances("authors").stream().findAny().orElseThrow(() -> new RuntimeException("No instances available!"));
+
+        URI uri = instance.getUri().resolve(baseURI + id);
 
         RequestEntity<Void> request = RequestEntity.get(uri).accept(MediaType.APPLICATION_JSON).build();
 
@@ -51,6 +60,9 @@ public class AuthorClient {
 
     @CacheEvict(value = "authors", allEntries = true)
     public List<String> fallback(Book book){
+        System.out.println("\n\n\n\n");
+        System.out.println("FALLBACK");
+        System.out.println("\n\n\n\n");
         return new ArrayList<>();
     }
 }
